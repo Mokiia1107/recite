@@ -3,14 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>背诵神器 v0.4 (沉浸版)</title>
+    <title>背诵神器 v0.5 (错题高亮版)</title>
     <style>
         :root {
             --bg-color: #1e1e1e;
             --text-color: #d4d4d4;
             --accent-color: #4ec9b0;
             --blur-bg: #4a4a4a;
-            --sidebar-width: 50%; /* 默认对半分 */
+            --missed-color: #f14c4c; /* 错题红色 */
+            --highlight-bg: #ffd700; /* 高亮黄色 */
+            --highlight-text: #1e1e1e;
+            --sidebar-width: 50%;
         }
 
         body {
@@ -32,28 +35,14 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-shrink: 0; /* 防止被挤压 */
+            flex-shrink: 0;
         }
 
-        .header-left {
-            display: flex;
-            flex-direction: column;
-        }
-
-        h2 {
-            margin: 0;
-            color: var(--accent-color);
-            font-size: 1.2rem;
-            letter-spacing: 1px;
-        }
-        
+        .header-left { display: flex; flex-direction: column; }
+        h2 { margin: 0; color: var(--accent-color); font-size: 1.2rem; letter-spacing: 1px; }
         .hint { font-size: 0.8rem; opacity: 0.6; margin-top: 4px; }
 
-        .btn-group {
-            display: flex;
-            gap: 10px;
-        }
-
+        .btn-group { display: flex; gap: 10px; }
         button {
             border: none;
             padding: 8px 16px;
@@ -64,11 +53,9 @@
             transition: opacity 0.2s, transform 0.1s;
             font-size: 14px;
         }
-
         button:active { transform: scale(0.98); }
         button:hover { opacity: 0.9; }
 
-        /* 功能按钮颜色区分 */
         .btn-reset { background: #ce9178; }
         .btn-toggle { background: #569cd6; color: white; }
         .btn-layout { background: var(--accent-color); }
@@ -78,47 +65,44 @@
             display: flex;
             gap: 20px;
             flex: 1;
-            min-height: 0; /* 关键：防止Flex子元素溢出 */
+            min-height: 0;
             position: relative;
         }
 
-        /* 左侧输入框 */
         .input-box {
-            flex: 0 0 var(--sidebar-width); /* 固定宽度或比例 */
+            flex: 0 0 var(--sidebar-width);
             display: flex;
             flex-direction: column;
             border: 1px solid #333;
             border-radius: 8px;
             padding: 20px;
             background: #252526;
-            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1); /* 丝滑动画 */
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
             overflow: hidden;
             opacity: 1;
         }
 
-        /* 当左侧隐藏时 */
         .input-box.hidden {
-            flex: 0 0 0; /* 宽度变0 */
-            padding: 20px 0; /* 横向padding变0 */
+            flex: 0 0 0;
+            padding: 20px 0;
             border-width: 0;
             opacity: 0;
-            margin-right: -20px; /* 抵消gap */
+            margin-right: -20px;
         }
 
-        /* 右侧预览框 */
         .preview-box {
-            flex: 1; /* 自动填满剩余空间 */
+            flex: 1;
             border: 1px solid #333;
             border-radius: 8px;
-            padding: 40px; /* 阅读模式下边距大一点更舒服 */
+            padding: 40px;
             background: #252526;
             overflow-y: auto;
             display: block; 
-            font-size: 20px; /* 全屏模式字体加大 */
+            font-size: 20px;
             line-height: 1.9;
             white-space: pre-wrap;
             word-wrap: break-word;
-            max-width: 100%; /* 防止撑开 */
+            max-width: 100%;
         }
 
         textarea {
@@ -135,7 +119,8 @@
         }
 
         /* === 样式系统 === */
-        /* 模糊块 */
+        
+        /* 1. 模糊块 (Spoiler) */
         .spoiler {
             background-color: var(--blur-bg);
             color: transparent;
@@ -147,8 +132,10 @@
             transition: all 0.2s ease;
             -webkit-box-decoration-break: clone;
             box-decoration-break: clone;
+            border: 1px solid transparent; /* 预留边框位置 */
         }
 
+        /* 正常点击揭示 */
         .spoiler.revealed {
             background-color: rgba(78, 201, 176, 0.15);
             color: var(--accent-color);
@@ -157,43 +144,62 @@
             border-radius: 0;
         }
 
-        /* 提纲模式 (Hardcore) */
-        .hardcore-mode {
-            color: transparent !important;
+        /* 🔴 错题标记 (Missed/Hard) */
+        .spoiler.missed {
+            background-color: rgba(241, 76, 76, 0.2) !important;
+            color: var(--missed-color) !important;
             text-shadow: none !important;
+            border: 1px solid var(--missed-color);
+            border-bottom: 3px solid var(--missed-color); /* 加重底部 */
+            font-weight: bold;
         }
-        .hardcore-mode .spoiler {
-            background-color: transparent !important;
-            box-shadow: none !important;
-            border-bottom: none !important;
-            pointer-events: none;
+
+        /* 🟡 静态高亮 (Highlight) ==text== */
+        mark {
+            background-color: var(--highlight-bg);
+            color: var(--highlight-text);
+            border-radius: 2px;
+            padding: 0 4px;
+            font-weight: bold;
         }
-        /* 提纲模式下标题可见 */
+
+        /* 提纲模式 */
+        .hardcore-mode { color: transparent !important; text-shadow: none !important; }
+        .hardcore-mode .spoiler { 
+            background-color: transparent !important; 
+            box-shadow: none !important; 
+            border: none !important; 
+            pointer-events: none; 
+        }
+        .hardcore-mode mark {
+            background: transparent; color: transparent; /* 高亮也隐身 */
+        }
         .hardcore-mode h3 {
             color: var(--accent-color) !important;
             opacity: 0.8;
             border-bottom: 1px dashed #333;
             padding-bottom: 10px;
         }
+
     </style>
 </head>
 <body>
 
     <div class="controls">
         <div class="header-left">
-            <h2>Markdown 背诵机</h2>
-            <span class="hint">左写右背，全屏专注。</span>
+            <h2>Markdown 背诵机 v0.5</h2>
+            <span class="hint">右键点击模糊块 = 标记没记住 | 使用 ==文字== 高亮</span>
         </div>
         <div class="btn-group">
             <button class="btn-layout" onclick="toggleLayout()">↔️ 切换全屏</button>
             <button class="btn-toggle" onclick="toggleHardcore()">🔥 提纲模式</button>
-            <button class="btn-reset" onclick="resetAll()">🙈 全部隐藏</button>
+            <button class="btn-reset" onclick="resetAll()">🔄 重置状态</button>
         </div>
     </div>
 
     <div class="container">
         <div class="input-box" id="inputBox">
-            <textarea id="inputArea" placeholder="输入笔记...&#10;&#10;使用 **重点** 来模糊内容。&#10;点击上方“切换全屏”隐藏此框。"></textarea>
+            <textarea id="inputArea" placeholder="输入笔记...&#10;&#10;1. 使用 **内容** 挖空。&#10;2. 使用 ==内容== 高亮。&#10;3. 右键点击模糊块标记为红色。"></textarea>
         </div>
 
         <div class="box preview-box" id="preview"></div>
@@ -207,48 +213,69 @@
         // 实时渲染
         inputArea.addEventListener('input', () => {
             render(inputArea.value);
-            // 自动保存到本地存储，防手滑刷新
             localStorage.setItem('reciteContent', inputArea.value);
         });
 
         function render(text) {
             let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
             
-            // 简单的 Markdown 标题支持
+            // 标题
             html = html.replace(/^## (.*$)/gim, '<h3 style="margin:1.5em 0 0.8em; color:#4ec9b0; font-size:1.4em;">$1</h3>');
             
-            // 模糊逻辑
-            html = html.replace(/\*\*(.*?)\*\*/g, '<span class="spoiler" onclick="toggleReveal(this)">$1</span>');
+            // 🟡 高亮语法 ==text== -> <mark>text</mark>
+            html = html.replace(/==(.*?)==/g, '<mark>$1</mark>');
+
+            // ⬛ 模糊语法 **text** -> span.spoiler
+            // 增加 oncontextmenu 事件监听右键
+            html = html.replace(/\*\*(.*?)\*\*/g, '<span class="spoiler" onclick="toggleReveal(this)" oncontextmenu="markAsMissed(event, this)">$1</span>');
             
             preview.innerHTML = html;
         }
 
+        // 左键：普通揭示
         function toggleReveal(element) {
+            // 如果已经是标记为错题的状态，点击左键可以取消错题状态，或者只是普通揭示
+            // 这里逻辑设定为：点击总是切换可见性
             element.classList.toggle('revealed');
         }
 
-        function resetAll() {
-            document.querySelectorAll('.spoiler').forEach(el => el.classList.remove('revealed'));
+        // 👉 右键：标记为“没记住” (红色)
+        function markAsMissed(event, element) {
+            event.preventDefault(); // 阻止浏览器默认右键菜单
+            
+            // 切换 'missed' 类
+            if (element.classList.contains('missed')) {
+                element.classList.remove('missed');
+                element.classList.remove('revealed'); // 顺便盖回去
+            } else {
+                element.classList.add('missed');
+                element.classList.add('revealed'); // 标记错题时肯定要让你看到答案是啥
+            }
         }
 
-        // 切换提纲模式
+        function resetAll() {
+            // 重置所有状态：模糊的、错题的都恢复原样
+            document.querySelectorAll('.spoiler').forEach(el => {
+                el.classList.remove('revealed');
+                el.classList.remove('missed');
+            });
+        }
+
         function toggleHardcore() {
             preview.classList.toggle('hardcore-mode');
         }
 
-        // 切换全屏布局
         function toggleLayout() {
             inputBox.classList.toggle('hidden');
         }
 
-        // 页面加载时恢复内容
         window.onload = function() {
             const saved = localStorage.getItem('reciteContent');
             if (saved) {
                 inputArea.value = saved;
                 render(saved);
             } else {
-                const defaultText = "## 哲学基本问题\n1. 存在和思维、物质和意识**谁为本源**的问题。\n2. 点击右上角的**切换全屏**按钮，把左边这个输入框收起来，开始专心背书吧！";
+                const defaultText = "## 使用指南\n1. 正常点击模糊块 = **查看答案**\n2. 鼠标右键点击 = **标记为没记住** (变红)\n3. 使用等号包裹 = ==这个是提示重点==\n\n快去试试吧！";
                 inputArea.value = defaultText;
                 render(defaultText);
             }
